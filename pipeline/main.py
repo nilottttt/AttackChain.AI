@@ -6,7 +6,7 @@ graph traversal -> response synthesis, and exposes it as a CLI.
 
     python main.py "your observation here"
 
-Requires `ollama serve` running locally for the synthesis stage.
+Requires `ollama serve` or `GEMINI_API_KEY` environment variable.
 """
 
 import json
@@ -15,7 +15,7 @@ import sys
 from embedding_retrieval import retrieve
 from quality_ranking import rank
 from graph_traversal import get_chain_context
-from response_synthesis import build_response_template, synthesize
+from response_synthesis import build_response_template, synthesize, analyze
 
 # Example observations used to exercise the full pipeline end to end.
 DEMO_OBSERVATIONS = [
@@ -33,21 +33,26 @@ DEMO_OBSERVATIONS = [
 
 def run(observation: str, with_llm: bool = True) -> dict:
     """Run one observation through the full pipeline, returning the structured response."""
-    candidates = retrieve(observation)
-    if not candidates:
+    result = analyze(observation)
+
+    ranking = result.get("ranking", [])
+    if not ranking:
         return {"error": "No matching entry found."}
 
-    ranked = rank(candidates)
-    top_entry = ranked[0]
-    chain_context = get_chain_context(top_entry["id"])
+    top_entry = ranking[0]
+    chain_context = result.get("graph", {})
 
     response = build_response_template(top_entry, chain_context)
+    response["advisory_text"] = result["answer"]
 
-    if with_llm:
-        try:
-            response["advisory_text"] = synthesize(observation, top_entry, chain_context)
-        except Exception as exc:
-            response["advisory_text"] = f"(LLM synthesis unavailable: {exc})"
+    # Include additional orchestration fields for integration and debugging
+    response["intent"] = result["intent"]
+    response["retrieval"] = result["retrieval"]
+    response["ranking"] = result["ranking"]
+    response["graph"] = result["graph"]
+    response["validation"] = result["validation"]
+    response["answer"] = result["answer"]
+    response["metadata"] = result["metadata"]
 
     return response
 
