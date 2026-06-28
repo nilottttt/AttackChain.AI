@@ -265,7 +265,7 @@ def get_chain_context(entry_id: str) -> Dict[str, Any]:
     truncated = sorted((next_ids | prev_ids) - CURATED_IDS)
 
     legacy_next = [_node_info_legacy(n) for n in sorted(next_ids)]
-    legacy_prev = [_node_info_legacy(p) for n in sorted(prev_ids)]
+    legacy_prev = [_node_info_legacy(n) for n in sorted(prev_ids)]
 
     return {
         # Person D API
